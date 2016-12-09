@@ -178,7 +178,7 @@ gmtl::Matrix44f cam1;
 gmtl::Matrix44f cam2;
 
 //activeCam - bool describing active camera. 0(false) for camera 1, 1(true) for camera 2
-bool activeCam = 0;
+bool activeCam = 1;
 
 //Q - {R} w.r.t. {W}
 gmtl::Matrix44f WtR;
@@ -301,6 +301,7 @@ float avgAccelMagAccum;
 float totalAccelMagAccum = 0.0f;
 
 float distAway1 = 1.75;
+float distAway2 = 1.0;
 bool distChange = true;
 
 //gmtl::Vec4f * birdVelocity;// = new gmtl::Vec4f[nb];
@@ -474,7 +475,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	{
 
 		distChange = true;
-		distAway1 -= 0.15;
+		if (!activeCam) 
+		{
+			distAway1 -= 0.15;
+		}
+		else
+		{
+			distAway2 -= 0.15;
+		}
+		
 		//if (!activeCam)
 		//{
 		//	/*change[2][3] = -0.15;
@@ -494,8 +503,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	//Arrow key down - Adjust T to zoom out
 	else if (key == GLFW_KEY_DOWN && action == GLFW_PRESS)
 	{
-		distAway1 += 0.15;
 		distChange = true;
+		if (!activeCam)
+		{
+			distAway1 += 0.15;
+		}
+		else
+		{
+			distAway2 += 0.15;
+		}
 		//if (!activeCam)
 		//{
 		//	/*change[2][3] = 0.15;
@@ -1472,35 +1488,19 @@ GLfloat * generateTextureUV(bool trench)
 		{
 			indices[p] = i / (numMerrid);
 			if (indices[p] > 1.0 || indices[p] < 0.0) printf("PROBLEM!\n");
-			//printf("i is:\t%i / %f\no is:\t%i / %f\nIndices[%i] is\t:\t%f\t", i, numMerrid-1, o, numParrallel-1, p, indices[p]);
 			p++;
 
 			indices[p] = o / (numParrallel - 1);
 			if (indices[p] > 1.0 || indices[p] < 0.0) printf("PROBLEM!\n");
-			//printf("%f\n", indices[p]);
 			p++;
 		}
-
-		//printf("\n");
 		
 	}
 
-	printf("P is \t\t:\t%i\n", p);
+	/*printf("P is \t\t:\t%i\n", p);
 	printf("NumVerts is \t:\t%i\n", numIndices);
 	printf("Last two items are\t:\t%f\t%f\n", indices[p-2], indices[p - 1]);
-
-	//printf("UV Coordinates:\n");
-
-	//for (int i = 0; i < numIndices; i+=2)
-	//{
-	//	//printf("%f\t%f\t\t%f\t%f\n", indices[i], indices[i+1], indices[i+2], indices[i+3]);
-	//	printf("%f , %f\t", indices[i], indices[i+1]);
-
-	//	if ((i % 3) == 0) printf("\n\n");
-	//}
-
-	//printf("\n\n");
-
+*/
 
 	return indices;
 }
@@ -2971,18 +2971,31 @@ int main(int argc, char *argv[])
 			else if (activeCam)
 			{
 				//Y-rotation by ele
-				R_ele[0][0] = cos(toRadians((float)y_Diff));
+				yRot[1] = sin(toRadians(y_Diff * 0.5));
+				yRot[3] = cos(toRadians(y_Diff * 0.5));
+				
+				
+				/*R_ele[0][0] = cos(toRadians((float)y_Diff));
 				R_ele[0][2] = sin(toRadians((float)y_Diff)) * -1;
 				R_ele[2][0] = sin(toRadians((float)y_Diff));
 				R_ele[2][2] = cos(toRadians((float)y_Diff));
-				R_long.setState(gmtl::Matrix44f::ORTHOGONAL);
+				R_long.setState(gmtl::Matrix44f::ORTHOGONAL);*/
 
-				////X-rotation by azi
-				R_azi[1][1] = cos(toRadians(-(float)x_Diff));
+				//X-rotation by azi
+				xRot[0] = sin(toRadians(x_Diff * -0.5));
+				xRot[3] = cos(toRadians(x_Diff * -0.5));
+
+				/*R_azi[1][1] = cos(toRadians(-(float)x_Diff));
 				R_azi[1][2] = sin(toRadians(-(float)x_Diff)) * -1;
 				R_azi[2][1] = sin(toRadians(-(float)x_Diff));
 				R_azi[2][2] = cos(toRadians(-(float)x_Diff));
-				R_long.setState(gmtl::Matrix44f::ORTHOGONAL);
+				R_long.setState(gmtl::Matrix44f::ORTHOGONAL);*/
+
+				tempX = gmtl::make<gmtl::Matrix44f>(xRot);
+				tempY = gmtl::make<gmtl::Matrix44f>(yRot);
+
+				R_ele = tempY * R_ele;
+				R_azi = tempX * R_azi;
 
 			}
 
@@ -2993,7 +3006,14 @@ int main(int argc, char *argv[])
 		{
 			//printf("Distance has changed!\n");
 			distChange = false;
-			T1[2][3] = distAway1;
+			if (!activeCam) 
+			{
+				T1[2][3] = distAway1;
+			}
+			else
+			{
+				T2[2][3] = distAway2;
+			}
 		}
 		
 
@@ -3021,11 +3041,11 @@ int main(int argc, char *argv[])
 		else
 		{
 			camChange = R_azi * R_ele * R_z * T2;
-			
-			gmtl::identity(T2);
+			//camChange = R_ele * R_azi * R_z * T2;
 
-			V = W * WtR * RtO * camChange;
-			
+			//V = WtR * RtO * camChange;
+			V = birdArray[1].getRot() * camChange;
+
 			V.setState(gmtl::Matrix44f::AFFINE);
 			gmtl::invert(V);
 
@@ -3056,7 +3076,10 @@ int main(int argc, char *argv[])
 		//LightSourcePosition = V * LightSourcePosition;
 		
 		//Load VM Matrices
-		modelMat[0] = V * W;
+		if (!activeCam)
+			modelMat[0] = V * W;
+		else
+			modelMat[0] = W;
 
 		modelMat[1] = WtS;
 
